@@ -1,0 +1,10 @@
+{
+  "name": "cocopau-functions",
+  "version": "1.0.0",
+  "private": true,
+  "main": "users-upsert/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {}
+}

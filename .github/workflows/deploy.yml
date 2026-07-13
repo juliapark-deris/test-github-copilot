@@ -1,0 +1,62 @@
+name: Auto Deploy to Azure
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cocopau-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-static-web:
+    name: Deploy static web files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Upload index.html
+        run: |
+          az storage blob upload \
+            --connection-string "${{ secrets.AZURE_STATIC_STORAGE_CONNECTION_STRING }}" \
+            --container-name '$web' \
+            --name index.html \
+            --file "index.html" \
+            --overwrite true
+
+      - name: Upload app-config.js
+        run: |
+          az storage blob upload \
+            --connection-string "${{ secrets.AZURE_STATIC_STORAGE_CONNECTION_STRING }}" \
+            --container-name '$web' \
+            --name app-config.js \
+            --file "app-config.js" \
+            --overwrite true
+
+  deploy-functions:
+    name: Deploy Azure Functions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install function dependencies
+        working-directory: backend-functions
+        run: npm install --omit=dev
+
+      - name: Deploy function app
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ secrets.AZURE_FUNCTIONAPP_NAME }}
+          package: backend-functions
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}

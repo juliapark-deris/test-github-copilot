@@ -474,6 +474,72 @@
       margin-bottom: 0.4rem;
     }
 
+    .summary-grid {
+      margin-top: 0.75rem;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.45rem;
+    }
+
+    .summary-item {
+      border: 1px solid var(--line-soft);
+      border-radius: 10px;
+      background: #ffffff;
+      padding: 0.45rem 0.35rem;
+    }
+
+    .summary-label {
+      margin: 0;
+      font-size: 0.72rem;
+      color: #77839a;
+      text-align: center;
+    }
+
+    .summary-value {
+      margin: 0.25rem 0 0;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #1f2937;
+      text-align: center;
+      line-height: 1.1;
+    }
+
+    .product-tools {
+      margin-top: 0.55rem;
+      display: grid;
+      grid-template-columns: 1fr 0.9fr;
+      gap: 0.45rem;
+    }
+
+    .product-tools input,
+    .product-tools select {
+      min-height: 36px;
+      border: 1px solid #d6dbe8;
+      border-radius: 10px;
+      padding: 0 0.6rem;
+      font-size: 0.82rem;
+      color: #1f2937;
+      background: #ffffff;
+    }
+
+    .product-tools select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      padding-right: 1.9rem;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%2364758b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-size: 14px 14px;
+      background-position: calc(100% - 9px) 50%;
+    }
+
+    .list-empty {
+      margin: 0.65rem 0 0;
+      font-size: 0.8rem;
+      color: #77839a;
+      text-align: left;
+    }
+
     .confirm-backdrop {
       position: fixed;
       inset: 0;
@@ -546,7 +612,9 @@
     }
 
     .field input:focus,
-    .field select:focus {
+    .field select:focus,
+    .product-tools input:focus,
+    .product-tools select:focus {
       outline: none;
       border-color: #f9a8d4;
       box-shadow: 0 0 0 4px rgba(249, 168, 212, 0.24);
@@ -637,10 +705,36 @@
           <article class="card">
             <h3 id="registered-count-title">등록된 화장품 0개</h3>
             <p id="registered-count-desc">아직 제품이 없어요. 아래 탭의 등록하기에서 시작해요.</p>
+            <div class="summary-grid">
+              <div class="summary-item">
+                <p class="summary-label">전체</p>
+                <p class="summary-value" id="summary-total-count">0</p>
+              </div>
+              <div class="summary-item">
+                <p class="summary-label">임박</p>
+                <p class="summary-value" id="summary-soon-count">0</p>
+              </div>
+              <div class="summary-item">
+                <p class="summary-label">만료</p>
+                <p class="summary-value" id="summary-expired-count">0</p>
+              </div>
+            </div>
           </article>
           <article class="card hidden" id="product-list-card">
             <h3>내 제품 목록</h3>
+            <div class="product-tools">
+              <input id="product-search-input" type="search" placeholder="제품명 검색">
+              <select id="product-category-filter">
+                <option value="">전체 카테고리</option>
+                <option value="스킨케어">스킨케어</option>
+                <option value="베이스">베이스</option>
+                <option value="립">립</option>
+                <option value="아이">아이</option>
+                <option value="기타">기타</option>
+              </select>
+            </div>
             <ul class="product-list" id="product-list"></ul>
+            <p class="list-empty hidden" id="product-list-empty">조건에 맞는 제품이 없어요.</p>
           </article>
         </section>
 
@@ -741,8 +835,14 @@
     const saveResult = document.getElementById("save-result");
     const registeredCountTitle = document.getElementById("registered-count-title");
     const registeredCountDesc = document.getElementById("registered-count-desc");
+    const summaryTotalCount = document.getElementById("summary-total-count");
+    const summarySoonCount = document.getElementById("summary-soon-count");
+    const summaryExpiredCount = document.getElementById("summary-expired-count");
     const productListCard = document.getElementById("product-list-card");
+    const productSearchInput = document.getElementById("product-search-input");
+    const productCategoryFilter = document.getElementById("product-category-filter");
     const productList = document.getElementById("product-list");
+    const productListEmpty = document.getElementById("product-list-empty");
     const soonCountTitle = document.getElementById("soon-count-title");
     const soonCountDesc = document.getElementById("soon-count-desc");
     const soonListCard = document.getElementById("soon-list-card");
@@ -1095,19 +1195,38 @@
 
     function renderProducts() {
       const total = products.length;
+      const expiredCount = products.filter((item) => getProductStatus(item).isExpired).length;
+      const soonCount = products.filter((item) => getProductStatus(item).isSoon).length;
+      const searchKeyword = productSearchInput.value.trim().toLowerCase();
+      const selectedCategory = productCategoryFilter.value;
+      const filteredProducts = products.filter((item) => {
+        const matchesKeyword = !searchKeyword || item.name.toLowerCase().includes(searchKeyword);
+        const matchesCategory = !selectedCategory || item.category === selectedCategory;
+        return matchesKeyword && matchesCategory;
+      });
+
       registeredCountTitle.textContent = "등록된 화장품 " + total + "개";
+      summaryTotalCount.textContent = String(total);
+      summarySoonCount.textContent = String(soonCount);
+      summaryExpiredCount.textContent = String(expiredCount);
 
       if (total === 0) {
         registeredCountDesc.textContent = "아직 제품이 없어요. 아래 탭의 등록하기에서 시작해요.";
         productListCard.classList.add("hidden");
         productList.innerHTML = "";
+        productListEmpty.classList.add("hidden");
         renderSoonProducts();
         return;
       }
 
-      registeredCountDesc.textContent = "직접 등록한 제품이 저장되어 있어요.";
+      if (searchKeyword || selectedCategory) {
+        registeredCountDesc.textContent = "검색 결과 " + filteredProducts.length + "개예요.";
+      } else {
+        registeredCountDesc.textContent = "직접 등록한 제품이 저장되어 있어요.";
+      }
+
       productListCard.classList.remove("hidden");
-      productList.innerHTML = products.map((item) => {
+      productList.innerHTML = filteredProducts.map((item) => {
         const status = getProductStatus(item);
         let pillText = "D-" + status.diffDays;
         let pillClass = "normal";
@@ -1131,6 +1250,7 @@
           + "</div>"
           + "</li>";
       }).join("");
+      productListEmpty.classList.toggle("hidden", filteredProducts.length > 0);
 
       renderSoonProducts();
     }
@@ -1255,6 +1375,14 @@
 
         switchTab(button.dataset.tab);
       });
+    });
+
+    productSearchInput.addEventListener("input", () => {
+      renderProducts();
+    });
+
+    productCategoryFilter.addEventListener("change", () => {
+      renderProducts();
     });
 
     productList.addEventListener("click", (event) => {
